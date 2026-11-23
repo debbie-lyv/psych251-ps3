@@ -1,0 +1,186 @@
+---
+title: "Reproducibility check: Feng & Rutledge (2024)"
+author: "Debbie Lim"
+date: today
+format:
+  html:
+    toc: true
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## Article
+
+- Citation and DOI: Feng, G. W., & Rutledge, R. B. (2024). Surprising sounds influence risky decision making. *Nature Communications, 15*, 8027. <https://doi.org/10.1038/s41467-024-51729-4>
+- Data/materials repository URL: Data on OSF, <https://doi.org/10.17605/OSF.IO/PA75Q> (cited in the paper's Data availability statement). Data and code on GitHub: <https://github.com/RutledgeLab/2024_sensory_surprises_risky_decisions>
+- Part A (known case) or Part B (a classmate's project paper): Part B
+- Part B only: the classmate's project repo, and which target outcome is its key effect: [https://github.com/psych251/feng2024]. The key effect is target outcome #1 (Experiment 2: more risky choices on Rare than on Common trials).
+
+## Target outcomes
+
+Written **before** opening the data. Quote each from the paper. In Part B, one of these must
+be the project's key effect.
+
+| # | Target outcome (quoted) | Paper value(s) |
+|---|---|---|
+| 1 | Participants chose the risky option more on Rare compared to Common trials | 4.03 ± 1.06% (mean ± SEM), (p < 0.001, two-sided Wilcoxon signed rank test) |
+
+
+## Materials inventory
+
+| Item | Available? | Notes |
+|---|---|---|
+| Raw data | Yes | `data/Exp2_data.mat` is a MATLAB struct array with 200 participants × 120 trials. It is byte-identical to `data_mat/Exp2_data.mat` in the GitHub repo. The repo also has the same data as CSV files (`data_csv/Exp2_data_taskdata.csv` and `Exp2_data_subjdata.csv`). |
+| Processed data | Partial | There are no rates per participant. The code computes them and could write them out, but those `writetable` lines are commented out. |
+| Codebook / variable descriptions | Partial | There is no separate codebook. Each participant's struct has a `hdr` field that names the 16 data columns: `Trial`, `Certain`, `Gain`, `Loss`, `Gambled`, `Outcome`, `RT`, `TimeElapsed`, `TotalScore`, `TrialOutcome`, `Tone`, and five unused "empty" columns. The `Tone` codes (1 = common AAAAAA, 2/3 = rare AAAAAB/AAAAAC) have to be inferred from the code (`t(:,16)==1` means common) and the CSV `toneMp3` file names. |
+| Analysis code | Yes | `run_mainfigures.m` (MATLAB R2022b; needs the Statistics and Optimization toolboxes). The target number comes from the "Figure 2A" section and the `modelfree_avg_fourbarplot` function. |
+| Preregistration | No | The paper does not mention a preregistration. |
+
+## Reproduction
+
+The agent's work, under your direction. Keep all code visible.
+
+MATLAB is not installed on this machine. So the target computation in `run_mainfigures.m` ("Figure 2A" section plus `modelfree_avg_fourbarplot`) was translated line for line into R. The `.mat` file is read directly with `R.matlab`. The relevant MATLAB code is:
+
+```matlab
+% per participant s in Experiment 2
+common = t(:,16)==1; oddball = t(:,16)~=1;
+gam_common(s,2)   = mean(t(common,7),'omitnan')*100;
+gam_oddballs(s,2) = mean(t(oddball,7),'omitnan')*100;
+% in modelfree_avg_fourbarplot
+ob_diff_study2 = rare_frequencies(:,2) - common_frequencies(:,2);
+[p_study2,~,stat_study2] = signrank(ob_diff_study2);
+gam_obdiff_se_study2 = std(ob_diff_study2,'omitnan')./sqrt(sum(~isnan(ob_diff_study2)));
+```
+
+```{r}
+#| label: setup
+library(tidyverse)
+library(R.matlab)  # read MATLAB .mat files
+library(knitr)
+```
+
+```{r}
+#| label: load
+mat <- readMat("data/Exp2_data.mat")
+alldata <- mat$alldata          # fields x participants x 1
+dimnames(alldata)[[1]]          # struct fields
+n_subj <- dim(alldata)[2]
+n_subj
+
+# column names for the 16-column trial matrix, from the hdr field
+hdr <- unlist(alldata["hdr", 1, 1][[1]])
+hdr
+
+# stack all participants into one long trial-level table
+trials <- map_dfr(seq_len(n_subj), \(s) {
+  x <- alldata["data", s, 1][[1]]
+  tibble(subj = s, trial = x[, 1], gambled = x[, 7], tone = x[, 16])
+})
+glimpse(trials)
+```
+
+```{r}
+#| label: preprocess
+# checks: 120 trials each, no missing choices, 90 common / 30 rare trials per participant
+trials %>%
+  group_by(subj) %>%
+  summarise(n = n(), missing = sum(is.na(gambled)),
+            n_common = sum(tone == 1), n_rare = sum(tone != 1)) %>%
+  count(n, missing, n_common, n_rare) %>%
+  kable()
+
+# % risky choices per participant on Common (tone == 1) and Rare (tone != 1) trials
+rates <- trials %>%
+  mutate(trial_type = if_else(tone == 1, "common", "rare")) %>%
+  group_by(subj, trial_type) %>%
+  summarise(risky = mean(gambled, na.rm = TRUE) * 100, .groups = "drop") %>%
+  pivot_wider(names_from = trial_type, values_from = risky) %>%
+  mutate(diff = rare - common)
+
+summary(rates)
+```
+
+```{r}
+#| label: analysis
+sem <- function(x) sd(x, na.rm = TRUE) / sqrt(sum(!is.na(x)))
+
+# Two-sided Wilcoxon signed rank test on Rare - Common differences.
+# Like MATLAB's signrank (n > 15, default 'approximate'), R drops zero differences
+# and uses the normal approximation with a tie adjustment and continuity correction.
+wt <- wilcox.test(rates$diff, mu = 0, alternative = "two.sided",
+                  exact = FALSE, correct = TRUE)
+wt
+
+# MATLAB's stats.signedrank = sum of the ranks of the positive non-zero differences
+nz <- rates$diff[rates$diff != 0]
+W  <- sum(rank(abs(nz))[nz > 0])
+
+tibble(
+  Quantity = c("Mean Rare - Common (%)", "SEM (%)", "p (two-sided Wilcoxon)",
+               "W (signed rank)", "Zero differences dropped", "N"),
+  Paper = c("4.03", "1.06", "< 0.001", "not reported", "", "200"),
+  Reproduced = c(sprintf("%.2f", mean(rates$diff)), sprintf("%.2f", sem(rates$diff)),
+                 format(signif(wt$p.value, 3), scientific = TRUE),
+                 format(W), format(sum(rates$diff == 0)), format(nrow(rates)))
+) %>% kable()
+```
+
+```{r}
+#| label: fig2a-exp2
+#| fig-width: 3.5
+#| fig-height: 4
+# Experiment 2 bars of Fig. 2A (mean ± SEM)
+rates %>%
+  pivot_longer(c(common, rare), names_to = "trial_type", values_to = "risky") %>%
+  group_by(trial_type) %>%
+  summarise(mean = mean(risky), se = sem(risky)) %>%
+  mutate(trial_type = recode(trial_type, common = "Common", rare = "Rare")) %>%
+  ggplot(aes(trial_type, mean, fill = trial_type)) +
+  geom_col(width = 0.7, show.legend = FALSE) +
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.15) +
+  scale_fill_manual(values = c(Common = "grey70", Rare = "grey30")) +
+  coord_cartesian(ylim = c(40, 56)) +
+  labs(x = NULL, y = "Chose risky option (%)", title = "Experiment 2") +
+  theme_classic()
+```
+
+Agent notes:
+
+- **The target reproduces exactly.** The Rare − Common difference is 4.03 ± 1.06% (mean ± SEM), with a two-sided Wilcoxon signed rank p ≈ 9.8 × 10⁻⁵ (< 0.001), N = 200.
+- **Translating the code was straightforward.** The only things to know were which columns mean what (col 7 = `Gambled`, col 16 = `Tone`; any tone other than 1 is Rare) and that MATLAB's `signrank` drops zero differences, as R's `wilcox.test` does.
+- **A latent bug in the original script that doesn't affect this result.** `gam_common`/`gam_oddballs` are preallocated with `length(study1)` rows. If Experiment 2 had more participants than Experiment 1, MATLAB would pad Experiment 1's column with zeros. Both experiments have n = 200, so nothing is affected.
+
+## Checker's verdict
+
+Filled in by you, not the agent.
+
+| # | Paper value | Reproduced value | Verdict (exact / minor / major / not reproducible) | Reason for discrepancy |
+|---|---|---|---|---|
+| 1 | 4.03 ± 1.06% (mean ± SEM), (p < 0.001, two-sided Wilcoxon signed rank test) |4.03 ± 1.06% (mean ± SEM), with a two-sided Wilcoxon signed rank p ≈ 9.8 × 10⁻⁵ (< 0.001) | exact | no discrepancy |
+
+Agent's own claim about success, and whether it was right:
+
+The agent claimed it was successful in reproducing the target outcome and it was correct, even after converting the MATLAB code to R.
+
+## Time
+
+- Your time (hours): 45 minutes (including reading paper, going through materials etc.)
+- Agent wall-clock time (hours): 2 minutes
+- Stopped at the 4-hour cap? What remained: Did not reach 4-hour cap
+
+## Assessment
+
+Is the primary result analytically reproducible? What would have made this take 30 minutes?
+
+Yes, the primary result is analytically reproducible. The original authors did an amazing job making data and code publicly available, and gave clear instructions on how to reproduce their findings. 
+
+## AI documentation
+
+- Agent and interface (e.g., Claude Code, Codex CLI, Cursor): Claude Code (VS Code extension)
+- Model and version, if the tool reports it: Claude Opus 5.5 (`claude-opus-5-5`)
+- Context you gave it (files, instructions, any context file): The paper PDF and `data/Exp2_data.mat` in the `Part B` folder, and this template with target outcome #1 already filled in. I also gave it the key finding as text, the GitHub repo URL, and the instruction "use run_mainfigures.m to compute the results of experiment 2". No CLAUDE.md or other context file. MATLAB was not available, so the agent translated the relevant MATLAB code into R.
+- Number of times you intervened, and the most important intervention: No interventions.
+- Transcript: transcripts/claude_code_transcript.md

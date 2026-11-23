@@ -1,0 +1,14 @@
+# articles
+*.pdf
+
+# folders not to publish
+.quarto/
+**/.quarto/
+transcripts/
+data/
+**/data/
+
+# R / editor clutter
+.Rhistory
+.RData
+.Rproj.user/

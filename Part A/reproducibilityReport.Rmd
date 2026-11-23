@@ -1,0 +1,221 @@
+---
+title: "Reproducibility Report: Group B Choice 3"
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+  pdf_document:
+    toc: yes
+---
+
+-------
+
+For this exercise, please try to reproduce the results from Experiment 2 of the associated paper (de la Fuente, Santiago, Roman, Dumitrache, & Casasanto, 2014). The PDF of the paper is included in the same folder as this Rmd file.
+
+#### Methods summary:
+
+Researchers tested the question of whether temporal focus differs between Moroccan and Spanish cultures, hypothesizing that Moroccans are more past-focused, whereas Spaniards are more future-focused. Two groups of participants ($N = 40$ Moroccan and $N=40$ Spanish) completed a temporal-focus questionnaire that contained questions about past-focused ("PAST") and future-focused ("FUTURE") topics. In response to each question, participants provided a rating on a 5-point Likert scale on which lower scores indicated less agreement and higher scores indicated greater agreement. The authors then performed a mixed-design ANOVA with agreement score as the dependent variable, group (Moroccan or Spanish, between-subjects) as the fixed-effects factor, and temporal focus (past or future, within-subjects) as the random effects factor. In addition, the authors performed unpaired two-sample t-tests to determine whether there was a significant difference between the two groups in agreement scores for PAST questions, and whether there was a significant difference in scores for FUTURE questions.
+
+------
+
+#### Target outcomes:
+
+Below is the specific result you will attempt to reproduce (quoted directly from the results section of Experiment 2):
+
+> According to a mixed analysis of variance (ANOVA) with group (Spanish vs. Moroccan) as a between-subjects factor and temporal focus (past vs. future) as a within-subjectS factor, temporal focus differed significantly between Spaniards and Moroccans, as indicated by a significant interaction of temporal focus and group, F(1, 78) = 19.12, p = .001, ηp2 = .20 (Fig. 2). Moroccans showed greater agreement with past-focused statements than Spaniards did, t(78) = 4.04, p = .001, and Spaniards showed greater agreement with future-focused statements than Moroccans did, t(78) = −3.32, p = .001. (de la Fuente et al., 2014, p. 1685).
+
+------
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE, warning=FALSE, message=FALSE)
+```
+
+# Step 1: Load packages
+
+```{r}
+library(tidyverse) # for data munging
+library(knitr) # for kable table formating
+library(haven) # import and export 'SPSS', 'Stata' and 'SAS' Files
+library(readxl) # import excel files
+
+# #optional packages/functions:
+library(afex) # anova functions
+# library(ez) # anova functions 2
+# library(scales) # for plotting
+std.err <- function(x) sd(x)/sqrt(length(x)) # standard error
+```
+
+# Step 2: Load data
+
+```{r}
+# Just Experiment 2
+data_path <- 'data/DeLaFuenteEtAl_2014_RawData.xls'
+d <- read_excel(data_path, sheet=3)
+```
+
+# Step 3: Tidy data
+
+Note: `sheet = 3` ("TFQ Exp2") is the same in all three versions of the data file in `data/` (I checked: every row is identical), so using the original file is fine.
+
+```{r}
+d <- d %>%
+  rename(rating = `Agreement (0=complete disagreement; 5=complete agreement)`) %>%
+  mutate(item_num = as.numeric(str_extract(item, "^[0-9]+")))
+
+glimpse(d)
+```
+
+Each participant should have 21 rows (11 PAST items + 10 FUTURE items). That is not true for the `participant` column as recorded:
+
+```{r}
+d %>% count(group, participant) %>% filter(n != 21) %>% kable()
+```
+
+In **both** groups, participant 24 has 17 rows, participant 25 has 4, and participant 40 has 42. The rows are stored in questionnaire order, so the cause is easy to see. Each group's rows are in blocks of 21: items 1–21 for one person, then items 1–21 for the next. The 21 rows labeled "40" in the middle of the sheet are items 18–21 for participant 24 plus items 1–17 for participant 25. This looks like a data-entry error. I fixed it by numbering participants again from row order within each group (every block of 21 rows is one person). Then I checked that each new ID has items 1–21 exactly once.
+
+```{r}
+d <- d %>%
+  group_by(group) %>%
+  mutate(pid = (row_number() - 1) %/% 21 + 1) %>%
+  ungroup() %>%
+  mutate(id = paste(group, pid, sep = "_"),
+         group = factor(group, levels = c("young Spaniard", "Moroccan"),
+                        labels = c("Spaniards", "Moroccans")),
+         subscale = factor(subscale, levels = c("PAST", "FUTURE")))
+
+# check: 80 participants, each answering items 1-21 exactly once
+d %>%
+  group_by(group, id) %>%
+  summarise(complete = identical(sort(item_num), as.numeric(1:21)), .groups = "drop") %>%
+  count(group, complete) %>%
+  kable()
+```
+
+# Step 4: Run analysis
+
+## Pre-processing
+
+Average each participant's ratings for each subscale (PAST and FUTURE):
+
+```{r}
+d_sub <- d %>%
+  group_by(group, id, subscale) %>%
+  summarise(rating = mean(rating), .groups = "drop")
+
+head(d_sub) %>% kable(digits = 2)
+```
+
+## Descriptive statistics
+
+Try to recreate Figure 2 (fig2.png, also included in the same folder as this Rmd file):
+
+```{r}
+d_desc <- d_sub %>%
+  group_by(group, subscale) %>%
+  summarise(mean = mean(rating), se = std.err(rating), n = n(), .groups = "drop")
+
+kable(d_desc, digits = 3)
+```
+
+```{r fig2, fig.width=5, fig.height=5}
+ggplot(d_desc, aes(x = group, y = mean, fill = subscale)) +
+  geom_col(position = position_dodge(width = 0.9), color = "black", width = 0.9) +
+  geom_linerange(aes(ymin = mean - se, ymax = mean + se),
+                 position = position_dodge(width = 0.9)) +
+  scale_fill_manual(values = c(PAST = "grey55", FUTURE = "grey90"),
+                    labels = c("Past-Focused Statements", "Future-Focused Statements"),
+                    name = NULL) +
+  coord_cartesian(ylim = c(2, 4)) +
+  scale_y_continuous(breaks = seq(2, 4, 0.25), expand = c(0, 0)) +
+  labs(x = NULL, y = "Rating") +
+  theme_classic() +
+  theme(legend.position = "top", legend.direction = "vertical")
+```
+
+All four means match the original Figure 2. Spaniards: past ≈ 2.68, future ≈ 3.49. Moroccans: past ≈ 3.29, future ≈ 3.12.
+
+The error bars only partly match. The SEs for Spaniards-past (≈ .10) and Moroccans-future (≈ .09) match the original. The other two do not:
+
+* In the original, Spaniards-future has an SE of about .12 and Moroccans-past about .07.
+* In the data, it is the reverse: Spaniards-future SE = `r sprintf("%.3f", d_desc$se[d_desc$group == "Spaniards" & d_desc$subscale == "FUTURE"])` and Moroccans-past SE = `r sprintf("%.3f", d_desc$se[d_desc$group == "Moroccans" & d_desc$subscale == "PAST"])`.
+
+So these two error bars appear to be swapped in the published figure. This was probably a plotting error. It does not affect the means or the inferential tests.
+
+## Inferential statistics
+
+> According to a mixed analysis of variance (ANOVA) with group (Spanish vs. Moroccan) as a between-subjects factor and temporal focus (past vs. future) as a within-subjects factor, temporal focus differed significantly between Spaniards and Moroccans, as indicated by a significant interaction of temporal focus and group, F(1, 78) = 19.12, p = .001, ηp2 = .20 (Fig. 2).
+
+```{r}
+# reproduce the above results here
+anova_res <- aov_ez(id = "id", dv = "rating", data = d_sub,
+                    between = "group", within = "subscale",
+                    anova_table = list(es = "pes"))
+anova_res
+
+int <- anova_res$anova_table["group:subscale", ]
+```
+
+The group × temporal focus interaction is *F*(`r int[["num Df"]]`, `r int[["den Df"]]`) = `r sprintf("%.2f", int$F)`, *p* = `r format.pval(int[["Pr(>F)"]], digits = 2)`, ηp² = `r sprintf("%.2f", int$pes)`. The paper reports *F*(1, 78) = 19.12, *p* = .001, ηp² = .20.
+
+> Moroccans showed greater agreement with past-focused statements than Spaniards did, t(78) = 4.04, p = .001,
+
+```{r}
+# reproduce the above results here
+t_past <- t.test(rating ~ group, data = filter(d_sub, subscale == "PAST"),
+                 var.equal = TRUE)
+t_past
+```
+
+Spaniards are the reference level, so I flipped the sign to match the paper's Moroccans − Spaniards direction. The result is *t*(`r t_past$parameter`) = `r sprintf("%.2f", -t_past$statistic)`, *p* = `r format.pval(t_past$p.value, digits = 2)`. The paper reports *t*(78) = 4.04, *p* = .001.
+
+> and Spaniards showed greater agreement with future-focused statements than Moroccans did, t(78) = −3.32, p = .001.(de la Fuente et al., 2014, p. 1685)
+
+```{r}
+# reproduce the above results here
+t_future <- t.test(rating ~ group, data = filter(d_sub, subscale == "FUTURE"),
+                   var.equal = TRUE)
+t_future
+```
+
+Using the same Moroccans − Spaniards direction, the result is *t*(`r t_future$parameter`) = `r sprintf("%.2f", -t_future$statistic)`, *p* = `r format.pval(t_future$p.value, digits = 2)`. The paper reports *t*(78) = −3.32, *p* = .001.
+
+## Summary of reproduced values
+
+```{r}
+tibble(
+  Test = c("Interaction F", "Interaction pes", "t (PAST)", "t (FUTURE)"),
+  Reported = c(19.12, .20, 4.04, -3.32),
+  Reproduced = c(int$F, int$pes, -t_past$statistic, -t_future$statistic)
+) %>%
+  mutate(`% error` = 100 * abs(Reproduced - Reported) / abs(Reported)) %>%
+  kable(digits = 2)
+```
+
+## Sensitivity check: using the participant IDs as recorded
+
+If you group by the `participant` column without fixing it, participant 25 in each group has no PAST data. The ANOVA then silently drops 2 people, giving df = 76 instead of 78. The two people labeled "40" are also averaged together. The results come out further from the paper. This suggests the authors' own data were not affected by the labeling error.
+
+```{r}
+d_raw_ids <- d %>%
+  mutate(raw_id = paste(group, participant)) %>%
+  group_by(group, raw_id, subscale) %>%
+  summarise(rating = mean(rating), .groups = "drop")
+
+aov_ez(id = "raw_id", dv = "rating", data = d_raw_ids,
+       between = "group", within = "subscale",
+       anova_table = list(es = "pes"))
+```
+
+# Step 5: Reflection
+
+Were you able to reproduce the results you attempted to reproduce? If not, what part(s) were you unable to reproduce?
+
+> Mostly yes. All results lead to the same conclusions as the paper. All four means in Figure 2 match. However, two of the published error bars (Spaniards-future and Moroccans-past) appear to be swapped. The interaction is *F*(1, 78) = 19.14, ηp² = .197 (reported: 19.12, .20). The PAST t-test is *t*(78) = 4.00 (reported: 4.04). The FUTURE t-test is *t*(78) = −3.36 (reported: −3.32). The test statistics differ by about 1% at most. These are minor numerical errors that I could not explain. Using Welch t-tests did not change the values. One more difference: the paper reports every p-value as "p = .001", but the actual values for the interaction and the PAST t-test are much smaller (p < .001). The paper probably meant "p < .001", or used a default output format that rounds small p-values to .001. The FUTURE t-test p-value (.0012) does round to .001.
+
+How difficult was it to reproduce your results?
+
+> Fairly easy. The analysis is standard: subscale means for each participant, a 2 × 2 mixed ANOVA, and two independent-samples t-tests.
+
+What aspects made it difficult? What aspects made it easy?
+
+> The hard part was the participant IDs. In both groups, the rows for participants 24 and 25 are partly labeled "40". A naive analysis drops two participants (df = 76) and averages two people together. I could only find this by checking that each participant had 21 rows. It was fixable because the rows are stored in questionnaire order. There are three versions of the data file, which was confusing at first, but the Experiment 2 sheet is identical in all of them. The easy parts: the data are in long format with a clear subscale column, the paper describes the design clearly, and the effect sizes are large enough that the conclusions are robust.
