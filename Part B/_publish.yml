@@ -1,0 +1,4 @@
+- source: ps3_check.qmd
+  posit-connect-cloud:
+    - id: 01a2060a-7168-399b-7737-a501b3e5aae1
+      url: https://connect.posit.cloud/debbie-lyv/content/01a2060a-7168-399b-7737-a501b3e5aae1

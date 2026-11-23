@@ -6,7 +6,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="author" content="[Your name]">
+<meta name="author" content="Debbie Lim">
 <meta name="dcterms.date" content="2026-11-22">
 
 <title>Reproducibility check: Feng &amp; Rutledge (2024)</title>
@@ -114,7 +114,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <div>
     <div class="quarto-title-meta-heading">Author</div>
     <div class="quarto-title-meta-contents">
-             <p>[Your name] </p>
+             <p>Debbie Lim </p>
           </div>
   </div>
     
@@ -139,7 +139,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>Citation and DOI: Feng, G. W., &amp; Rutledge, R. B. (2024). Surprising sounds influence risky decision making. <em>Nature Communications, 15</em>, 8027. <a href="https://doi.org/10.1038/s41467-024-51729-4" class="uri">https://doi.org/10.1038/s41467-024-51729-4</a></li>
 <li>Data/materials repository URL: Data on OSF, <a href="https://doi.org/10.17605/OSF.IO/PA75Q" class="uri">https://doi.org/10.17605/OSF.IO/PA75Q</a> (cited in the paper’s Data availability statement). Data and code on GitHub: <a href="https://github.com/RutledgeLab/2024_sensory_surprises_risky_decisions" class="uri">https://github.com/RutledgeLab/2024_sensory_surprises_risky_decisions</a></li>
 <li>Part A (known case) or Part B (a classmate’s project paper): Part B</li>
-<li>Part B only: the classmate’s project repo, and which target outcome is its key effect: [classmate’s repo URL]. The key effect is target outcome #1 (Experiment 2: more risky choices on Rare than on Common trials).</li>
+<li>Part B only: the classmate’s project repo, and which target outcome is its key effect: [https://github.com/psych251/feng2024]. The key effect is target outcome #1 (Experiment 2: more risky choices on Rare than on Common trials).</li>
 </ul>
 </section>
 <section id="target-outcomes" class="level2">
@@ -445,40 +445,28 @@ alternative hypothesis: true location is not equal to 0</code></pre>
 <tbody>
 <tr class="odd">
 <td>1</td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="even">
-<td>2</td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td>3</td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
+<td>4.03 ± 1.06% (mean ± SEM), (p &lt; 0.001, two-sided Wilcoxon signed rank test)</td>
+<td>4.03 ± 1.06% (mean ± SEM), with a two-sided Wilcoxon signed rank p ≈ 9.8 × 10⁻⁵ (&lt; 0.001)</td>
+<td>exact</td>
+<td>no discrepancy</td>
 </tr>
 </tbody>
 </table>
 <p>Agent’s own claim about success, and whether it was right:</p>
+<p>The agent claimed it was successful in reproducing the target outcome and it was correct, even after converting the MATLAB code to R.</p>
 </section>
 <section id="time" class="level2">
 <h2 class="anchored" data-anchor-id="time">Time</h2>
 <ul>
-<li>Your time (hours):</li>
-<li>Agent wall-clock time (hours):</li>
-<li>Stopped at the 4-hour cap? What remained:</li>
+<li>Your time (hours): 45 minutes (including reading paper, going through materials etc.)</li>
+<li>Agent wall-clock time (hours): 2 minutes</li>
+<li>Stopped at the 4-hour cap? What remained: Did not reach 4-hour cap</li>
 </ul>
 </section>
 <section id="assessment" class="level2">
 <h2 class="anchored" data-anchor-id="assessment">Assessment</h2>
 <p>Is the primary result analytically reproducible? What would have made this take 30 minutes?</p>
+<p>Yes, the primary result is analytically reproducible. The original authors did an amazing job making data and code publicly available, and gave clear instructions on how to reproduce their findings.</p>
 </section>
 <section id="ai-documentation" class="level2">
 <h2 class="anchored" data-anchor-id="ai-documentation">AI documentation</h2>
@@ -486,8 +474,8 @@ alternative hypothesis: true location is not equal to 0</code></pre>
 <li>Agent and interface (e.g., Claude Code, Codex CLI, Cursor): Claude Code (VS Code extension)</li>
 <li>Model and version, if the tool reports it: Claude Opus 5.5 (<code>claude-opus-5-5</code>)</li>
 <li>Context you gave it (files, instructions, any context file): The paper PDF and <code>data/Exp2_data.mat</code> in the <code>Part B</code> folder, and this template with target outcome #1 already filled in. I also gave it the key finding as text, the GitHub repo URL, and the instruction “use run_mainfigures.m to compute the results of experiment 2”. No CLAUDE.md or other context file. MATLAB was not available, so the agent translated the relevant MATLAB code into R.</li>
-<li>Number of times you intervened, and the most important intervention:</li>
-<li>Transcript: link to the exported transcript in your repo (<code>transcripts/</code>). If your tool cannot export one, paste your prompts in order here instead.</li>
+<li>Number of times you intervened, and the most important intervention: No interventions.</li>
+<li>Transcript: transcripts/claude_code_transcript.md</li>
 </ul>
 </section>
 
