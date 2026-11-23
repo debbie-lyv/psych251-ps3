@@ -18,7 +18,7 @@
 
 ## Data and materials not included
 
-The article PDFs, data files, and AI transcripts are not committed. To re-run the analyses, place the data in each part's `data/` folder.
+The article PDFs and data files are not committed. To re-run the analyses, place the data in each part's `data/` folder.
 
 - **Part A data:** [psych251/problem_sets — ps3/Group B/Choice 3/data](https://github.com/psych251/problem_sets/tree/master/ps3/Group%20B/Choice%203) (originally from [OSF](https://osf.io/uh3in)).
 - **Part B data:** `Exp2_data.mat` from [RutledgeLab/2024_sensory_surprises_risky_decisions](https://github.com/RutledgeLab/2024_sensory_surprises_risky_decisions) (`data_mat/`), also on [OSF](https://doi.org/10.17605/OSF.IO/PA75Q).

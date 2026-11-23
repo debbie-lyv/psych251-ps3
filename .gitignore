@@ -4,7 +4,6 @@
 # folders not to publish
 .quarto/
 **/.quarto/
-transcripts/
 data/
 **/data/
 
